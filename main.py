@@ -355,12 +355,50 @@ class ModelViewer3D:
             messagebox.showerror("Ошибка", f"Не удалось построить график функции: {str(e)}")
     
     def plot_model(self):
-        """Отрисовка 3D модели"""
+        """Отрисовка 3D модели в каркасном режиме"""
         self.ax.clear()
         
         if self.current_vertices is not None and self.current_faces is not None:
             vertices = np.array(self.current_vertices)
             faces = self.current_faces
+            
+            # Для каждого ребра рисуем линию
+            edges_set = set()  # Чтобы избежать дублирования ребер
+            
+            for face in faces:
+                if len(face) >= 3:
+                    # Добавляем все ребра грани
+                    for i in range(len(face)):
+                        v1 = face[i]
+                        v2 = face[(i + 1) % len(face)]
+                        
+                        # Сортируем индексы для уникальности ребра
+                        edge = tuple(sorted([v1, v2]))
+                        if edge not in edges_set:
+                            edges_set.add(edge)
+                            
+                            # Проверяем что индексы в пределах массива вершин
+                            if v1 < len(vertices) and v2 < len(vertices):
+                                # Рисуем ребро
+                                self.ax.plot(
+                                    [vertices[v1][0], vertices[v2][0]],
+                                    [vertices[v1][1], vertices[v2][1]],
+                                    [vertices[v1][2], vertices[v2][2]],
+                                    color='blue',
+                                    linewidth=1.0,
+                                    alpha=0.8
+                                )
+            
+            # Опционально: рисуем вершины точками
+            self.ax.scatter(
+                vertices[:, 0],
+                vertices[:, 1],
+                vertices[:, 2],
+                color='red',
+                s=15,
+                alpha=0.6,
+                marker='o'
+            )
             
             # Calculate bounds for auto-scaling
             if len(vertices) > 0:
@@ -374,25 +412,32 @@ class ModelViewer3D:
                 self.ax.set_xlim(center[0] - max_range - padding, center[0] + max_range + padding)
                 self.ax.set_ylim(center[1] - max_range - padding, center[1] + max_range + padding)
                 self.ax.set_zlim(center[2] - max_range - padding, center[2] + max_range + padding)
-            
-            # Plot faces
-            for face in faces:
-                if len(face) >= 3:  # Ensure at least 3 vertices
-                    try:
-                        polygon = vertices[face]
-                        self.ax.plot_trisurf(
-                            polygon[:, 0], polygon[:, 1], polygon[:, 2],
-                            alpha=0.7, shade=True, color='lightblue', edgecolor='blue', linewidth=0.3
-                        )
-                    except Exception as e:
-                        # Fallback: plot edges only for problematic faces
-                        for i in range(len(face)):
-                            start_idx = face[i]
-                            end_idx = face[(i + 1) % len(face)]
-                            if start_idx < len(vertices) and end_idx < len(vertices):
-                                start = vertices[start_idx]
-                                end = vertices[end_idx]
-                                self.ax.plot([start[0], end[0]], [start[1], end[1]], [start[2], end[2]], 'b-', linewidth=0.5)
+        
+        self.ax.set_xlabel('X')
+        self.ax.set_ylabel('Y')
+        self.ax.set_zlabel('Z')
+        
+        title = '3D Model Viewer - Wireframe'
+        if self.current_filename:
+            title += f' - {os.path.basename(self.current_filename)}'
+        elif self.current_model_type == "rotation":
+            title += ' - Фигура вращения'
+        elif self.current_model_type == "function":
+            title += ' - График функции'
+        elif self.current_model_type == "loaded":
+            title += ' - Загруженная модель'
+        
+        self.ax.set_title(title)
+        
+        # Устанавливаем прозрачный фон
+        self.ax.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+        self.ax.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+        self.ax.zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+        
+        # Сетка для лучшей ориентации
+        self.ax.grid(True, linestyle=':', alpha=0.2)
+        
+        self.canvas_plot.draw()
         
         self.ax.set_xlabel('X')
         self.ax.set_ylabel('Y')
